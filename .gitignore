@@ -1,0 +1,18 @@
+# Wi-Fi password and server address for the ESP32
+firmware/smart_pot/secrets.h
+
+# Database (created on first run)
+*.db
+*.db-journal
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Editors and OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
