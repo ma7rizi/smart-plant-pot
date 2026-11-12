@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sprout · Smart Plant Pot</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body data-state="healthy">
+  <div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+
+  <header class="nav">
+    <a class="brand" href="#dashboard">
+      <span class="logo"><svg viewBox="0 0 24 24"><path d="M12 21v-8M12 13C12 8 8.5 5.5 4 5.5 4 10 6.5 13 12 13zM12 15.5c0-4 3-6.5 8-6.5 0 4.2-2.8 6.5-8 6.5z"/></svg></span>
+      <span>Sprout<small>Smart Plant Pot</small></span>
+    </a>
+    <nav class="tabs" id="tabs">
+      <a href="#dashboard" data-page="dashboard">Dashboard</a>
+      <a href="#history" data-page="history">History</a>
+      <a href="#about" data-page="about">About</a>
+      <a href="#support" data-page="support">Support</a>
+    </nav>
+    <div class="nav-right">
+      <div class="conn" id="conn"><span class="dot"></span><span id="connText">Connecting…</span></div>
+      <label class="select"><span class="sr">Plant profile</span><select id="profileSel"></select></label>
+      <button class="btn" id="simBtn" type="button"><span data-ic="sliders"></span><span class="lbl">Simulator</span></button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ================= DASHBOARD ================= -->
+    <section class="page" id="page-dashboard">
+      <div class="hero card">
+        <div class="scene-wrap">
+          <canvas id="scene"></canvas>
+          <div class="scene-chips">
+            <span class="chip" id="clockChip"><span data-ic="sun"></span><b>--:--</b><em>pot clock</em></span>
+          </div>
+          <div class="offline-veil" id="offlineVeil"><span data-ic="wifi"></span>Pot is offline. Showing the last reading.</div>
+        </div>
+        <div class="hero-info">
+          <div class="eyebrow"><span class="state-pill" id="statePill"></span><span id="latin"></span></div>
+          <h1 id="headline">Waiting for the pot…</h1>
+          <p class="subline" id="subline">Readings will appear here as soon as the pot connects.</p>
+
+          <div class="hero-row">
+            <div class="ring">
+              <svg viewBox="0 0 120 120">
+                <circle class="ring-bg" cx="60" cy="60" r="50"/>
+                <circle class="ring-fg" id="ringFg" cx="60" cy="60" r="50" transform="rotate(-90 60 60)"/>
+              </svg>
+              <div class="ring-num"><b id="scoreNum">--</b><span>health</span></div>
+            </div>
+            <div class="oled-wrap">
+              <div class="oled">
+                <canvas id="oledScreen" width="128" height="64" aria-label="Pot screen"></canvas>
+              </div>
+              <span class="caption">What the pot's own screen shows</span>
+            </div>
+          </div>
+
+          <dl class="facts">
+            <div><dt>Last watered</dt><dd id="factWater">--</dd></div>
+            <div><dt>Readings stored</dt><dd id="factCount">--</dd></div>
+            <div><dt>Device</dt><dd id="factDevice">--</dd></div>
+          </dl>
+        </div>
+      </div>
+
+      <div class="sensors" id="sensors"></div>
+
+      <div class="grid2">
+        <div class="card pad">
+          <h2><span data-ic="leaf"></span>What your plant needs</h2>
+          <ul class="recs" id="recs"></ul>
+        </div>
+        <div class="card pad">
+          <h2><span data-ic="bell"></span>Notifications<span class="feed-next" id="feedNext"></span></h2>
+          <div class="feed-bar" aria-hidden="true"><i id="feedBar"></i></div>
+          <ul class="feed" id="feed"><li class="empty">No notifications yet.</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= HISTORY ================= -->
+    <section class="page" id="page-history" hidden>
+      <div class="page-head">
+        <div>
+          <h1>History</h1>
+          <p class="subline">Every reading the pot has sent, with the ideal range for the selected plant.</p>
+        </div>
+        <div class="filters">
+          <div class="seg" id="rangeSeg">
+            <button data-n="120" type="button">Last 120</button>
+            <button data-n="360" class="on" type="button">Last 360</button>
+            <button data-n="1200" type="button">Last 1,200</button>
+          </div>
+          <div class="seg" id="viewSeg">
+            <button data-v="charts" class="on" type="button">Charts</button>
+            <button data-v="table" type="button">Table</button>
+          </div>
+        </div>
+      </div>
+      <div class="charts" id="charts"></div>
+      <div class="card pad" id="tableWrap" hidden>
+        <div class="table-scroll"><table id="histTable"></table></div>
+      </div>
+    </section>
+
+    <!-- ================= ABOUT ================= -->
+    <section class="page" id="page-about" hidden>
+      <div class="about-hero">
+        <span class="eyebrow">Diploma project · CSSE2205 · Software Engineering</span>
+        <h1>A plant pot that tells you how it feels.</h1>
+        <p class="lead">Sprout is a smart plant pot. Sensors in the pot watch the soil, the light and the air, and the pot
+          turns those numbers into something anyone can read at a glance: one of six faces on its screen, such as
+          HAPPY or THIRSTY, with a web dashboard that explains what is wrong and what to do about it.</p>
+      </div>
+
+      <h2 class="section">The six faces</h2>
+      <p class="subline section-sub">The pot checks these rules from top to bottom and shows the first face that matches. The website uses exactly the same rules, so both always agree.</p>
+      <div class="faces" id="faceCards"></div>
+      <div class="legend">
+        <span><i class="sw good"></i>Healthy: all is well</span>
+        <span><i class="sw warn"></i>Normal: worth a look soon</span>
+        <span><i class="sw bad"></i>Unhealthy: act now</span>
+        <span><i class="sw rest"></i>Resting: it's dark, the plant sleeps</span>
+      </div>
+
+      <h2 class="section">How it works</h2>
+      <div class="card pad">
+        <div class="flow">
+          <div class="node"><span data-ic="drop"></span><b>Sensors</b><small>Soil, light, temperature, humidity</small></div>
+          <div class="pipe"></div>
+          <div class="node"><span data-ic="chip"></span><b>ESP32</b><small>Reads the sensors, drives the screen</small></div>
+          <div class="pipe"></div>
+          <div class="node"><span data-ic="wifi"></span><b>Wi-Fi</b><small>HTTP POST with JSON</small></div>
+          <div class="pipe"></div>
+          <div class="node"><span data-ic="server"></span><b>Flask API</b><small>Applies the plant rules</small></div>
+          <div class="pipe"></div>
+          <div class="node"><span data-ic="db"></span><b>Database</b><small>Readings and notifications</small></div>
+          <div class="pipe"></div>
+          <div class="node"><span data-ic="screen"></span><b>Web app</b><small>Dashboard, history, advice</small></div>
+        </div>
+        <ol class="steps">
+          <li><b>Measure.</b> The pot reads its sensors every few seconds.</li>
+          <li><b>Decide.</b> The pot checks six simple rules in order and picks one face, such as HAPPY or THIRSTY.</li>
+          <li><b>Send.</b> About every 6 seconds the ESP32 sends the reading to the server over Wi-Fi, or over USB as a backup.</li>
+          <li><b>Show.</b> The pot draws the face on its screen. The server checks the reading with the same rules, saves it, and the web app shows live values, history, notifications and advice.</li>
+        </ol>
+      </div>
+
+      <h2 class="section">What is inside</h2>
+      <div class="parts">
+        <div class="card pad"><h3>ESP32</h3><p>Microcontroller with built-in Wi-Fi. The brain of the pot.</p></div>
+        <div class="card pad"><h3>Capacitive soil sensor</h3><p>Measures soil moisture without metal probes that corrode.</p></div>
+        <div class="card pad"><h3>DHT22</h3><p>Air temperature and humidity around the plant.</p></div>
+        <div class="card pad"><h3>BH1750</h3><p>Light level in lux, so the pot knows if its spot is bright enough.</p></div>
+        <div class="card pad"><h3>OLED display</h3><p>A small screen on the pot that shows the face and the most important reading.</p></div>
+        <div class="card pad"><h3>Flask and a database</h3><p>Python backend on the laptop that stores readings and applies the rules.</p></div>
+      </div>
+
+      <h2 class="section">The team</h2>
+      <div class="team" id="team"></div>
+      <p class="note">The real pot sends its readings over Wi-Fi, or over USB as a backup. When no pot is connected, the built-in simulator sends readings to the same address, so the website can still be demonstrated.</p>
+    </section>
+
+    <!-- ================= SUPPORT ================= -->
+    <section class="page" id="page-support" hidden>
+      <div class="page-head">
+        <div>
+          <h1>Customer support</h1>
+          <p class="subline">Questions or problems with your Smart Plant Pot? Send the team a message and we'll reply by email.</p>
+        </div>
+      </div>
+      <div class="support">
+        <div class="card pad">
+          <h2><span data-ic="mail"></span>Send us a message</h2>
+          <form id="supportForm" novalidate>
+            <div class="form-grid">
+              <div class="field"><label for="sfName">Full name <em>*</em></label>
+                <input id="sfName" name="name" autocomplete="name" placeholder="Ahmed Al Balushi" maxlength="80"><small class="err" data-for="name"></small></div>
+              <div class="field"><label for="sfEmail">Email <em>*</em></label>
+                <input id="sfEmail" name="email" type="email" autocomplete="email" placeholder="ahmed@example.com" maxlength="120"><small class="err" data-for="email"></small></div>
+              <div class="field"><label for="sfPhone">Phone number</label>
+                <input id="sfPhone" name="phone" type="tel" autocomplete="tel" placeholder="+968 9123 4567" maxlength="20"><small class="err" data-for="phone"></small></div>
+              <div class="field"><label for="sfTopic">Topic <em>*</em></label>
+                <select id="sfTopic" name="topic">
+                  <option value="">Choose a topic</option>
+                  <option>Question about my pot</option>
+                  <option>Sensor or hardware problem</option>
+                  <option>Website problem</option>
+                  <option>Feedback or suggestion</option>
+                  <option>Other</option>
+                </select><small class="err" data-for="topic"></small></div>
+              <div class="field wide"><label for="sfMessage">Message <em>*</em><span class="count" id="sfCount">0 / 1000</span></label>
+                <textarea id="sfMessage" name="message" rows="6" maxlength="1000" placeholder="Tell us what happened, and what the pot's screen shows."></textarea><small class="err" data-for="message"></small></div>
+            </div>
+            <div class="form-foot">
+              <span class="caption"><em>*</em> Required. We only use your details to reply to you.</span>
+              <button class="btn primary" type="submit" id="sfSend">Send message</button>
+            </div>
+            <p class="form-error" id="sfError" hidden></p>
+          </form>
+          <div class="sent" id="supportSent" hidden>
+            <span class="sent-ic" data-ic="check"></span>
+            <h3>Message sent</h3>
+            <p id="sentText"></p>
+            <button class="btn" type="button" id="sfAgain">Send another message</button>
+          </div>
+        </div>
+        <div class="support-side">
+          <div class="card pad">
+            <h2><span data-ic="info"></span>Quick answers</h2>
+            <div class="faq">
+              <details><summary>The pot's face says SLEEPY</summary><p>The light is under 10 lux, so the plant is resting. Move the pot closer to a window during the day.</p></details>
+              <details><summary>The website says "Pot offline"</summary><p>No reading arrived for 20 seconds. Check that the pot is on, connected to the same Wi-Fi as the laptop, or plugged in by USB.</p></details>
+              <details><summary>Soil moisture always shows 0%</summary><p>Make sure the soil sensor is pushed into the soil up to the white line, and that its three wires are firmly connected.</p></details>
+              <details><summary>The pot and website show different faces</summary><p>Select "Mint (pot rules)" in the plant menu at the top. Other plant profiles use different ranges.</p></details>
+              <details><summary>The screen shows NO WIFI</summary><p>The pot can only join 2.4 GHz Wi-Fi. On an iPhone hotspot, turn on Maximize Compatibility.</p></details>
+            </div>
+          </div>
+          <div class="card pad">
+            <h2><span data-ic="leaf"></span>About the team</h2>
+            <p class="subline">Smart Plant Pot is a diploma project by Group D28, Department of IT, University of Technology and Applied Sciences, Al Musanna.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ================= SIMULATOR ================= -->
+  <aside class="drawer" id="drawer" aria-label="Virtual pot simulator">
+    <div class="drawer-head">
+      <div><h2>Virtual pot</h2><p>Stands in for the ESP32 and its sensors.</p></div>
+      <button class="icon-btn" id="simClose" type="button" aria-label="Close simulator">✕</button>
+    </div>
+    <div class="drawer-body">
+      <button class="btn water" id="waterBtn" type="button"><span data-ic="drop"></span>Water the plant</button>
+
+      <h3>Scenarios</h3>
+      <div class="scenarios" id="scenarios"></div>
+
+      <h3>Environment</h3>
+      <div class="sliders" id="sliders"></div>
+
+      <h3>Time</h3>
+      <div class="seg wrap" id="speedSeg"></div>
+      <label class="toggle"><input type="checkbox" id="dayCycle"><span class="sw-t"></span>Day and night cycle</label>
+
+      <h3>Connection</h3>
+      <label class="toggle"><input type="checkbox" id="wifiTgl"><span class="sw-t"></span>Pot connected to Wi-Fi</label>
+
+      <h3>Last message sent by the pot</h3>
+      <pre class="payload" id="payload">--</pre>
+      <button class="btn ghost small" id="resetBtn" type="button">Clear stored history</button>
+    </div>
+  </aside>
+
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+
+  <script src="js/oled.js"></script>
+  <script src="js/scene.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
