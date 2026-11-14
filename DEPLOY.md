@@ -14,7 +14,7 @@ This puts the dashboard at `http://ma7rizi.pythonanywhere.com`, so it opens from
 
 ## 1. Get the code
 
-Open **Consoles → Bash** and run:
+On **pythonanywhere.com** (not your own PC's terminal), open **Consoles → Bash** and run:
 
 > Until the `1-host-online` branch is merged into `main`, use `git clone -b 1-host-online ...` in the first line instead.
 
