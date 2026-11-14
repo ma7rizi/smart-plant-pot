@@ -25,7 +25,8 @@ from simulator import Simulator, make_sim_api
 BASE = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE, "plant.db")
 PORT = int(os.environ.get("PORT", 5000))
-REAL_POT = "--real" in sys.argv   # real hardware posts the readings, no simulator
+# Real hardware posts the readings, no simulator. Set by --real, or REAL_POT=1 when hosted (see wsgi.py).
+REAL_POT = "--real" in sys.argv or os.environ.get("REAL_POT") == "1"
 USB_PORT = sys.argv[sys.argv.index("--usb") + 1] if "--usb" in sys.argv else None
 OFFLINE_AFTER = 20 if REAL_POT else 6   # seconds without a reading before the pot counts as offline
 MAX_READINGS = 20000
