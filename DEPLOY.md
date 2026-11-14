@@ -16,13 +16,13 @@ This puts the dashboard at `http://ma7rizi.pythonanywhere.com`, so it opens from
 
 Open **Consoles → Bash** and run:
 
+> Until the `1-host-online` branch is merged into `main`, use `git clone -b 1-host-online ...` in the first line instead.
+
 ```bash
 git clone https://github.com/ma7rizi/smart-plant-pot.git
 cd smart-plant-pot
 pip3.10 install --user -r requirements.txt
 ```
-
-Until the `1-host-online` branch is merged into `main`, clone it with `git clone -b 1-host-online https://github.com/ma7rizi/smart-plant-pot.git` instead.
 
 Close the console when it's done, so it doesn't use CPU time.
 
