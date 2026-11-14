@@ -89,6 +89,10 @@ Open http://localhost:5000 and click **Simulator** (top right) to control the vi
 
 Change `COM5` to the port your computer gives the ESP32.
 
+### Host it online
+
+See [DEPLOY.md](DEPLOY.md) to put the website on PythonAnywhere (free plan), so it opens from anywhere.
+
 ### Flash the firmware
 
 1. Install the [Arduino IDE](https://www.arduino.cc/en/software) and the ESP32 board package.
