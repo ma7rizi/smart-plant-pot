@@ -1,8 +1,6 @@
 # Hosting the website online (PythonAnywhere, free plan)
 
-This puts the dashboard at `http://YOUR_USERNAME.pythonanywhere.com`, so it opens from anywhere and the pot can send readings over any internet connection.
-
-Replace `YOUR_USERNAME` with your PythonAnywhere username everywhere below.
+This puts the dashboard at `http://ma7rizi.pythonanywhere.com`, so it opens from anywhere and the pot can send readings over any internet connection.
 
 ## Free plan: what to know
 
@@ -24,6 +22,8 @@ cd smart-plant-pot
 pip3.10 install --user -r requirements.txt
 ```
 
+Until the `1-host-online` branch is merged into `main`, clone it with `git clone -b 1-host-online https://github.com/ma7rizi/smart-plant-pot.git` instead.
+
 Close the console when it's done, so it doesn't use CPU time.
 
 ## 2. Create the web app
@@ -31,8 +31,8 @@ Close the console when it's done, so it doesn't use CPU time.
 1. Open the **Web** tab and click **Add a new web app**.
 2. Click **Next**, choose **Manual configuration** (not "Flask"), then **Python 3.10**.
 3. In the **Code** section set:
-   - **Source code:** `/home/YOUR_USERNAME/smart-plant-pot`
-   - **Working directory:** `/home/YOUR_USERNAME/smart-plant-pot`
+   - **Source code:** `/home/ma7rizi/smart-plant-pot`
+   - **Working directory:** `/home/ma7rizi/smart-plant-pot`
 
 ## 3. Point it at our app
 
@@ -41,7 +41,7 @@ In the **Code** section, click the **WSGI configuration file** link. Delete ever
 ```python
 import sys
 
-path = "/home/YOUR_USERNAME/smart-plant-pot"
+path = "/home/ma7rizi/smart-plant-pot"
 if path not in sys.path:
     sys.path.insert(0, path)
 
@@ -56,8 +56,8 @@ In the **Static files** section add two entries:
 
 | URL | Directory |
 |---|---|
-| `/js/` | `/home/YOUR_USERNAME/smart-plant-pot/static/js` |
-| `/css/` | `/home/YOUR_USERNAME/smart-plant-pot/static/css` |
+| `/js/` | `/home/ma7rizi/smart-plant-pot/static/js` |
+| `/css/` | `/home/ma7rizi/smart-plant-pot/static/css` |
 
 This lets PythonAnywhere send these files itself, so our single worker only handles the API.
 
@@ -65,14 +65,14 @@ This lets PythonAnywhere send these files itself, so our single worker only hand
 
 1. Leave **Force HTTPS** switched **off** for now, so the pot can send readings over plain `http://`.
 2. Click the green **Reload** button at the top of the **Web** tab.
-3. Open `http://YOUR_USERNAME.pythonanywhere.com`. You should see "Waiting for the pot…".
+3. Open `http://ma7rizi.pythonanywhere.com`. You should see "Waiting for the pot…".
 
 ## 6. Point the pot at the online server
 
 In `firmware/smart_pot/secrets.h` set:
 
 ```cpp
-const char* SERVER_URL = "http://YOUR_USERNAME.pythonanywhere.com/api/readings";
+const char* SERVER_URL = "http://ma7rizi.pythonanywhere.com/api/readings";
 ```
 
 Upload the firmware. The pot now works on any Wi-Fi network with internet access, and the dashboard shows **Pot online · Wi-Fi**.
