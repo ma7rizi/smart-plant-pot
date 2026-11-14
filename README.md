@@ -3,6 +3,8 @@
 An IoT plant pot that shows how your plant feels. An ESP32 reads soil moisture, temperature, humidity and light, shows a face on a small OLED screen, and sends every reading to a web dashboard with live status, history charts, advice and notifications.
 
 > Diploma project in Software Engineering (Group D28).
+>
+> **Roadmap:** [project board](https://github.com/users/ma7rizi/projects/1) · **Contributing:** [how the team works](CONTRIBUTING.md)
 
 ## Features
 
