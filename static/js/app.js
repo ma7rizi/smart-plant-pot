@@ -16,6 +16,8 @@
     alert: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7.5v5.5M12 16.4v.1',
     info: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 11v5.5M12 7.6v.1',
     bell: 'M6 16v-5a6 6 0 1 1 12 0v5l1.5 2h-15L6 16zM10 20.5a2 2 0 0 0 4 0',
+    chart: 'M4 19h16M7 15l3.5-4 3 2.5L18 8',
+    shield: 'M12 3l7 3v5.5c0 4.3-3 7.9-7 9.5-4-1.6-7-5.2-7-9.5V6l7-3z',
     sliders: 'M4 7h10M18 7h2M4 17h4M12 17h8M16 5a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM10 15a2 2 0 1 0 0 4 2 2 0 0 0 0-4z',
     wifi: 'M3 9.5a13 13 0 0 1 18 0M6 13a8.5 8.5 0 0 1 12 0M9 16.5a4 4 0 0 1 6 0M12 19.5v.1',
     leaf: 'M5 19C5 11 10 6 19 5c0 9-4 14-11 14H5zM5 19c2-4 5-7 9-9',
@@ -27,6 +29,20 @@
   };
   const icon = n => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="${ICONS[n]}"/></svg>`;
   document.querySelectorAll('[data-ic]').forEach(e => { e.outerHTML = icon(e.dataset.ic); });
+  // Opened from the home screen? Then use the app layout. ?app=1 and ?notch=1 let us test it in a browser.
+  const params = new URLSearchParams(location.search);
+  const appMode = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true || params.has('app');
+  document.body.classList.toggle('app', appMode);
+  // The header's blur traps fixed elements, so the bottom tab bar has to live outside it.
+  const phoneSize = matchMedia('(max-width: 760px)');
+  const placeTabs = () => {
+    if (appMode && phoneSize.matches) document.body.appendChild($('#tabs'));
+    else document.querySelector('.nav').insertBefore($('#tabs'), document.querySelector('.nav-right'));
+  };
+  placeTabs();
+  phoneSize.addEventListener('change', placeTabs);
+  document.body.classList.toggle('fake-notch', params.has('notch'));
+  let isAdmin = false;
 
   // ---- sensors --------------------------------------------------------
   const SENSORS = {
@@ -281,6 +297,29 @@
   });
   paintAlertBtn();
 
+  // ---- admin: test phone alerts ---------------------------------------------
+  const TEST_ALERTS = [
+    ['drop', 'warn', 'Water me now', 'Soil is dry (18%). Give your plant some water.'],
+    ['drop', 'bad', 'Too much water', 'Soil is waterlogged (92%). Stop watering and let it drain.'],
+    ['thermo', 'bad', 'Too hot', "It's 34 °C. Move the pot somewhere cooler."],
+    ['thermo', 'warn', 'Too cold', "It's 12 °C. Move the pot away from the AC."],
+    ['sun', 'warn', 'Too dark', 'Light is low. Move the pot near a window.'],
+    ['check', 'good', 'Watered', 'Soil moisture went up. Thanks for watering!'],
+  ];
+  $('#testAlerts').innerHTML = TEST_ALERTS.map(([ic, lv, title], i) =>
+    `<button type="button" class="test-alert" data-i="${i}" data-level="${lv}">${icon(ic)}<span>${esc(title)}</span></button>`).join('');
+  $('#testAlerts').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    const [, , title, body] = TEST_ALERTS[b.dataset.i];
+    const msg = $('#testMsg');
+    msg.hidden = false;
+    if (!alertsOn()) { msg.dataset.level = 'bad'; msg.textContent = 'Turn on alerts first: Dashboard, then "Turn on alerts" in the Notifications card.'; return; }
+    const wait = $('#testDelay').checked ? 5000 : 0;
+    msg.dataset.level = 'good';
+    msg.textContent = wait ? `"${title}" arrives in 5 seconds. Lock your phone now to see it like a real alert.` : `"${title}" sent.`;
+    setTimeout(() => showAlert(title, body, 'test-' + Date.now()), wait);
+  });
+
   // ---- account ----------------------------------------------------------
   // Start the dashboard only for a signed-in user; otherwise show the sign-in screen.
   async function startApp() {
@@ -292,6 +331,9 @@
     $('#userName').textContent = user.name;
     $('#userRole').textContent = user.role === 'admin' ? 'Admin' : 'User';
     $('#userInitial').textContent = user.name.trim()[0].toUpperCase();
+    isAdmin = user.role === 'admin';
+    $('#adminTab').hidden = !isAdmin;
+    if (isAdmin) route();   // the page may have been opened on #admin
     const d = await (await fetch('/api/profiles')).json();
     $('#profileSel').innerHTML = d.profiles.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
     $('#profileSel').value = d.current;
@@ -460,7 +502,8 @@
 
   // ---- pages ----------------------------------------------------------------
   function route() {
-    const page = ['dashboard', 'history', 'about', 'support'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'dashboard';
+    const pages = ['dashboard', 'history', 'about', 'support'].concat(isAdmin ? ['admin'] : []);
+    const page = pages.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'dashboard';
     document.querySelectorAll('.page').forEach(p => { p.hidden = p.id !== 'page-' + page; });
     document.querySelectorAll('#tabs a').forEach(a => a.classList.toggle('on', a.dataset.page === page));
     window.scrollTo(0, 0);

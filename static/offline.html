@@ -2,12 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#070b12">
   <title>Offline · Sprout</title>
   <style>
     html, body { margin: 0; height: 100%; }
-    body { display: grid; place-items: center; padding: 24px 16px; box-sizing: border-box; background: #070b12; color: #e8eef6;
+    body { display: grid; place-items: center; padding: calc(24px + env(safe-area-inset-top, 0px)) 16px calc(24px + env(safe-area-inset-bottom, 0px)); box-sizing: border-box; background: #070b12; color: #e8eef6;
       font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; text-align: center; }
     img { width: 84px; height: 84px; border-radius: 22px; }
     h1 { font-size: 22px; margin: 18px 0 6px; }
