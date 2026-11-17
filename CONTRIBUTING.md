@@ -6,7 +6,7 @@ All work is tracked in **[Issues](../../issues)** and on the **project board**. 
 
 - Open **Issues** and choose one, or take the one assigned to you.
 - On the right, under **Assignees**, click **assign yourself**. Now everyone knows you're on it.
-- On the project board, move the card from **To do** to **In progress**.
+- On the project board, move the card from **Todo** to **In Progress**.
 
 ## 2. Get the code (first time only)
 
@@ -17,9 +17,13 @@ pip install -r requirements.txt
 python app.py
 ```
 
+Open http://localhost:5000 and sign in with **`admin`** / **`admin123`** (works on your own computer only).
+
 ## 3. Work on your own branch
 
-Never work straight on `main`. Make a branch named after the issue:
+`main` is protected: nobody can push to it directly, force-push it or delete it. All work goes through a branch and a pull request.
+
+Make a branch named after the issue. The easiest way is the issue's sidebar: **Development**, then **Create a branch**. That links it to the issue. Or from the terminal:
 
 ```bash
 git checkout main
@@ -52,7 +56,8 @@ Open your issue and tick each step in the checklist as you finish it. Anyone in 
 When the pull request is approved and merged into `main`:
 
 - the issue **closes automatically** (because of `Closes #3`), and
-- its card moves to **Done** on the board.
+- its card moves to **Done** on the board, and
+- the branch is **deleted automatically**. Run `git checkout main && git pull` to start the next task.
 
 ## Rules
 
@@ -60,3 +65,5 @@ When the pull request is approved and merged into `main`:
 - Never upload passwords or keys. Wi-Fi details go in `firmware/smart_pot/secrets.h`, which Git ignores.
 - Don't commit `plant.db`.
 - Found a bug? Open a new issue with the `bug` label.
+- Don't put people's names in the repository; it's public. Use roles instead (see the README).
+- After a merge, the live site updates only when someone runs `git pull` on PythonAnywhere and clicks **Reload** (see [DEPLOY.md](DEPLOY.md)).
