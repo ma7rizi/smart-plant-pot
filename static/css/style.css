@@ -359,6 +359,9 @@ body.fake-notch { --sat: 59px; --sab: 34px; }   /* ?notch=1: pretend to be an iP
 .tabs .ic { display: none; }
 .tabs a[hidden] { display: none !important; }
 body.app { overscroll-behavior-y: none; }
+/* installed app on tablets: icons next to the words in the top tabs (phones get the bottom bar below) */
+body.app .tabs a { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+body.app .tabs .ic { display: block; width: 17px; height: 17px; flex: none; }
 body.app .nav, body.app .tabs, body.app .btn, body.app .seg { -webkit-user-select: none; user-select: none; }
 @media (max-width: 760px) {
   .nav { padding-top: calc(12px + var(--sat)); padding-left: calc(16px + var(--sal)); padding-right: calc(16px + var(--sar)); }
