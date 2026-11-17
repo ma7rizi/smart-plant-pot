@@ -8,6 +8,7 @@ An IoT plant pot that shows how your plant feels. An ESP32 reads soil moisture, 
 
 ## Features
 
+- **Accounts:** sign up and sign in to see the dashboard. Passwords are stored hashed. Two roles: **user** and **admin**.
 - **Live dashboard:** plant status, a 0–100 health score, an exact copy of the pot's screen, four sensor cards with healthy ranges, advice and notifications. It updates every second.
 - **History:** charts with the healthy range shaded, or a table, for the last 120, 360 or 1,200 readings.
 - **Six faces:** SLEEPY, THIRSTY, OVERWATERED, HOT, COLD and HAPPY. The pot and the website use the same rules, in the same order.
@@ -125,13 +126,19 @@ The pot checks the rules in this order and shows the first one that matches.
 
 | Method | Endpoint | Purpose |
 |---|---|---|
+| `POST` | `/api/signup` | Create an account (name, email, password) |
+| `POST` | `/api/login` | Sign in (email, password) |
+| `POST` | `/api/logout` | Sign out |
+| `GET` | `/api/me` | The signed-in user, or 401 |
 | `POST` | `/api/readings` | The pot sends a reading (needs the `X-Api-Key` header when the server has an `API_KEY`) |
 | `GET` | `/api/live?after=<id>` | Latest reading, status, new notifications and trend data |
 | `GET` | `/api/history?limit=<n>` | The newest `n` readings (10–2,000) |
 | `GET` | `/api/profiles` | Available plant profiles |
 | `POST` | `/api/profile` | Choose a plant profile |
 | `POST` | `/api/support` | Send a support message |
-| `POST` | `/api/reset` | Clear readings and notifications |
+| `POST` | `/api/reset` | Clear readings and notifications (**admin only**) |
+
+`/api/live`, `/api/history`, `/api/profiles` and `/api/profile` need a signed-in user. `/api/support` is open to everyone.
 
 Example reading sent by the pot:
 
@@ -150,3 +157,6 @@ SQLite (`plant.db`), created automatically on first run. It keeps the newest 20,
 | `events` | Notifications, such as "Water me now" or "Watered" |
 | `settings` | The chosen plant profile |
 | `support_messages` | Messages sent from the Support page |
+| `users` | Accounts: name, email, hashed password, role (user or admin) |
+
+The **first account** created becomes the admin, unless `ADMIN_EMAIL` is set (see [DEPLOY.md](DEPLOY.md)).
