@@ -45,8 +45,8 @@
       <form id="authForm" novalidate>
         <div class="field" id="afNameField" hidden><label for="afName">Full name</label>
           <input id="afName" name="name" autocomplete="name" maxlength="80"><small class="err" data-for="name"></small></div>
-        <div class="field"><label for="afEmail">Email</label>
-          <input id="afEmail" name="email" type="email" autocomplete="email" maxlength="120"><small class="err" data-for="email"></small></div>
+        <div class="field"><label for="afEmail" id="afEmailLabel">Email or username</label>
+          <input id="afEmail" name="email" type="text" autocomplete="username" maxlength="120"><small class="err" data-for="email"></small></div>
         <div class="field"><label for="afPassword">Password<span class="count" id="afHint"></span></label>
           <input id="afPassword" name="password" type="password" autocomplete="current-password" maxlength="128"><small class="err" data-for="password"></small></div>
         <p class="form-error" id="afError" hidden></p>

@@ -271,6 +271,7 @@
     $('#authSub').textContent = signup ? 'Sign up to follow your plant from anywhere.' : 'Sign in to see how your plant is doing.';
     $('#afSubmit').textContent = signup ? 'Create account' : 'Sign in';
     $('#afHint').textContent = signup ? 'at least 8 characters' : '';
+    $('#afEmailLabel').textContent = signup ? 'Email' : 'Email or username';
     $('#afPassword').autocomplete = signup ? 'new-password' : 'current-password';
     ['name', 'email', 'password'].forEach(k => setAuthErr(k, ''));
     $('#afError').hidden = true;
@@ -283,7 +284,8 @@
     const v = Object.fromEntries(['name', 'email', 'password'].map(k => [k, authForm.elements[k].value]));
     const errs = {};
     if (authMode === 'signup' && v.name.trim().length < 2) errs.name = 'Enter your full name.';
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.email.trim())) errs.email = 'Enter a valid email address.';
+    if (authMode === 'signup' && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.email.trim())) errs.email = 'Enter a valid email address.';
+    if (authMode === 'login' && !v.email.trim()) errs.email = 'Enter your email or username.';
     if (authMode === 'signup' ? v.password.length < 8 : !v.password) errs.password = authMode === 'signup' ? 'Use at least 8 characters.' : 'Enter your password.';
     ['name', 'email', 'password'].forEach(k => setAuthErr(k, errs[k]));
     if (Object.keys(errs).length) return;

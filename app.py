@@ -36,8 +36,10 @@ OFFLINE_AFTER = 20 if REAL_POT else 6   # seconds without a reading before the p
 MAX_READINGS = 20000
 # Secret the pot must send in the X-Api-Key header. Empty = no check (local testing).
 API_KEY = os.environ.get("API_KEY", "")
-# Emails that become admin when they sign up (comma separated). If empty, the first account is the admin.
-ADMIN_EMAILS = {e.strip().lower() for e in os.environ.get("ADMIN_EMAIL", "").split(",") if e.strip()}
+# Built-in admin account: sign in with username "admin". Online, set ADMIN_PASSWORD (see DEPLOY.md);
+# on a laptop without it the password is "admin123" for easy testing.
+ADMIN_USER = "admin"
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD") or ("" if REAL_POT else "admin123")
 LOGIN_LIMIT, LOGIN_WINDOW = 5, 300   # at most 5 wrong passwords per 5 minutes from one address
 WATER_JUMP = 5          # % rise in soil moisture that counts as a watering
 WATER_COOLDOWN = 10     # seconds between "watered" notifications
@@ -83,6 +85,17 @@ def init_db():
             db.execute("INSERT INTO settings (key, value) VALUES ('secret_key', ?)", (secret,))
             db.commit()
     app.secret_key = secret
+    # Create the admin account, or update its password if ADMIN_PASSWORD changed.
+    if ADMIN_PASSWORD:
+        row = db.execute("SELECT password_hash FROM users WHERE email = ?", (ADMIN_USER,)).fetchone()
+        if row is None:
+            db.execute("INSERT INTO users (name, email, password_hash, role, created_at) VALUES (?,?,?,?,?)",
+                       ("Admin", ADMIN_USER, generate_password_hash(ADMIN_PASSWORD), "admin",
+                        datetime.now().isoformat(timespec="seconds")))
+        elif not check_password_hash(row["password_hash"], ADMIN_PASSWORD):
+            db.execute("UPDATE users SET password_hash = ?, role = 'admin' WHERE email = ?",
+                       (generate_password_hash(ADMIN_PASSWORD), ADMIN_USER))
+        db.commit()
     row = db.execute("SELECT value FROM settings WHERE key='profile'").fetchone()
     if row and row["value"] in rules.PROFILES:
         live["profile"] = row["value"]
@@ -262,11 +275,9 @@ def signup():
         if db.execute("SELECT 1 FROM users WHERE email = ?", (email,)).fetchone():
             return jsonify(error="An account with this email already exists.",
                            errors={"email": "This email is already registered. Sign in instead."}), 409
-        first = db.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 0
-        role = "admin" if email in ADMIN_EMAILS or (first and not ADMIN_EMAILS) else "user"
-        cur = db.execute(
+        cur = db.execute(   # new accounts are always normal users; the admin is the built-in account
             "INSERT INTO users (name, email, password_hash, role, created_at) VALUES (?,?,?,?,?)",
-            (name, email, generate_password_hash(password), role, datetime.now().isoformat(timespec="seconds")))
+            (name, email, generate_password_hash(password), "user", datetime.now().isoformat(timespec="seconds")))
         db.commit()
     session.clear()
     session.permanent = True
