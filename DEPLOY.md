@@ -1,6 +1,8 @@
 # Hosting the website online (PythonAnywhere, free plan)
 
-This puts the dashboard at `http://ma7rizi.pythonanywhere.com`, so it opens from anywhere and the pot can send readings over any internet connection.
+This puts the dashboard at **https://ma7rizi.pythonanywhere.com**, so it opens from anywhere, installs on phones and sends push alerts. The pot can send readings over any internet connection.
+
+**Steps 1–6 are done once.** After that you only need [Updating the website](#updating-the-website) and [Keeping it running](#keeping-it-running).
 
 ## Free plan: what to know
 
@@ -15,8 +17,6 @@ This puts the dashboard at `http://ma7rizi.pythonanywhere.com`, so it opens from
 ## 1. Get the code
 
 On **pythonanywhere.com** (not your own PC's terminal), open **Consoles → Bash** and run:
-
-> Until the `1-host-online` branch is merged into `main`, use `git clone -b 1-host-online ...` in the first line instead.
 
 ```bash
 git clone https://github.com/ma7rizi/smart-plant-pot.git
@@ -74,9 +74,9 @@ This lets PythonAnywhere send these files itself, so our single worker only hand
 
 ## 5. Start it
 
-1. Leave **Force HTTPS** switched **off** for now, so the pot can send readings over plain `http://`.
+1. Leave **Force HTTPS** switched **off**, so the pot can send readings over plain `http://`. People still open the site with `https://`, which installing the phone app and push alerts need.
 2. Click the green **Reload** button at the top of the **Web** tab.
-3. Open `http://ma7rizi.pythonanywhere.com`. You should see "Waiting for the pot…".
+3. Open https://ma7rizi.pythonanywhere.com. You should see the sign-in screen. Sign in with username **`admin`** and your `ADMIN_PASSWORD`.
 
 ## 6. Point the pot at the online server
 
@@ -89,7 +89,7 @@ const char* API_KEY    = "the same key as in the WSGI file";
 
 Upload the firmware. If the pot's screen shows **BAD KEY**, the key in `secrets.h` doesn't match the one in the WSGI file. The pot now works on any Wi-Fi network with internet access, and the dashboard shows **Pot online · Wi-Fi**.
 
-## Updating the website later
+## Updating the website
 
 After changes are merged into `main` on GitHub:
 
@@ -105,6 +105,22 @@ The `pip` line is only needed when `requirements.txt` changed (for example when 
 
 Phones that turn on alerts get them even when the app is closed (Web Push). Nothing to set up: the server creates its signing keys the first time and keeps them in the database. The free plan allows the push services (Apple, Google, Mozilla, Microsoft). On iPhone, push works in the app added to the Home Screen (iOS 16.4 or newer).
 
+## Keeping it running
+
+Free web apps switch off after **3 months**. PythonAnywhere emails a reminder about a week before. On the **Web** tab, click **Run until 3 months from today**. You can click it any time, and it moves the date 3 months ahead.
+
+## Settings in the WSGI file
+
+| Setting | Needed | What it does |
+|---|---|---|
+| `API_KEY` | Yes | The pot must send this key with every reading |
+| `SECRET_KEY` | Yes | Signs the login cookie. Changing it signs everyone out |
+| `ADMIN_PASSWORD` | Yes | Password for the `admin` account. Change it here and click **Reload** |
+| `VAPID_PRIVATE_KEY` | No | Push signing key. Made automatically if missing |
+| `PUSH_CONTACT` | No | Contact address for push services. Defaults to the site's address |
+
+Keep a private copy of your keys and password (for example in a password manager). They're only in this file and in the pot's `secrets.h`.
+
 ## If something goes wrong
 
 On the **Web** tab, open the **Error log** link in the **Log files** section. The last lines show what failed.
@@ -115,3 +131,6 @@ On the **Web** tab, open the **Error log** link in the **Log files** section. Th
 | `ModuleNotFoundError: flask` | Run the `pip3.10 install --user -r requirements.txt` step again. |
 | Pot shows BAD KEY | `API_KEY` in `secrets.h` must exactly match the one in the WSGI file. Click **Reload** after changing the WSGI file. |
 | Pot stays offline | Check that `SERVER_URL` uses `http://` (not https) and the exact username, and that Force HTTPS is off. |
+| `pip` shows "dependency conflicts" with `pyopenssl` or `weasyprint` | Only a warning: those are PythonAnywhere's own packages and the app doesn't use them. The install still worked. |
+| Admin test alert says "isn't subscribed" | On the phone, tap **Alerts on** twice (off, then on) so it subscribes to push again. |
+| Phone shows an old version | Close the app completely (swipe it away) and open it again. |
