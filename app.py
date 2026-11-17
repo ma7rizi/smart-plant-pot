@@ -7,6 +7,7 @@ Run:  python app.py                    demo with the simulated pot
 Then open http://localhost:5000
 """
 
+import hmac
 import json
 import logging
 import os
@@ -30,6 +31,8 @@ REAL_POT = "--real" in sys.argv or os.environ.get("REAL_POT") == "1"
 USB_PORT = sys.argv[sys.argv.index("--usb") + 1] if "--usb" in sys.argv else None
 OFFLINE_AFTER = 20 if REAL_POT else 6   # seconds without a reading before the pot counts as offline
 MAX_READINGS = 20000
+# Secret the pot must send in the X-Api-Key header. Empty = no check (local testing).
+API_KEY = os.environ.get("API_KEY", "")
 WATER_JUMP = 5          # % rise in soil moisture that counts as a watering
 WATER_COOLDOWN = 10     # seconds between "watered" notifications
 
@@ -103,6 +106,8 @@ def events_for_change(old, new, name):
 # ---- API for the pot --------------------------------------------------
 @app.post("/api/readings")
 def post_reading():
+    if API_KEY and not hmac.compare_digest(request.headers.get("X-Api-Key", ""), API_KEY):
+        return jsonify(error="missing or wrong API key"), 401
     result = store_reading(request.get_json(silent=True) or {}, "wifi")
     if result is None:
         return jsonify(error="expected soil_moisture, temperature, humidity and light"), 400
