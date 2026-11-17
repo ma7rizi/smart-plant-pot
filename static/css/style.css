@@ -153,6 +153,9 @@ body.offline .scene-wrap canvas { filter: grayscale(.7) brightness(.8); transiti
 .feed time { transition: opacity .4s; }
 .feed-next { margin-left: auto; font-size: 12px; font-weight: 500; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .feed-next b { color: var(--ink); font-weight: 650; }
+.alert-btn { margin-left: 10px; white-space: nowrap; }
+.feed-next:empty + .alert-btn { margin-left: auto; }
+.alert-btn.on { color: var(--good); border-color: color-mix(in srgb, var(--good) 45%, transparent); }
 .feed-bar { height: 3px; border-radius: 99px; background: rgba(255, 255, 255, .08); overflow: hidden; margin: -6px 0 14px; }
 .feed-bar i { display: block; height: 100%; border-radius: 99px; transform-origin: left; transform: scaleX(0); background: linear-gradient(90deg, var(--mood-2), var(--mood)); transition: background 1s; }
 .feed .empty { color: var(--ink-3); justify-content: center; border-style: dashed; }

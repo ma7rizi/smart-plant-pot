@@ -169,7 +169,7 @@
     for (const ev of d.events) {
       lastEvent = Math.max(lastEvent, ev.id);
       if (firstLoad) addFeed(ev, false);
-      else { queue.push(ev); toast(ev); if (ev.title === 'Watered') scene.water(); }
+      else { queue.push(ev); toast(ev); plantAlert(ev); if (ev.title === 'Watered') scene.water(); }
     }
     if (firstLoad) { firstLoad = false; startCycle(); }
 
@@ -238,6 +238,48 @@
     }
     setTimeout(poll, 1000);
   }
+
+  // ---- phone app and plant alerts -----------------------------------------
+  // The service worker lets the site install as an app ("Add to Home Screen") and shows alerts.
+  const swReady = 'serviceWorker' in navigator
+    ? navigator.serviceWorker.register('/sw.js').then(() => navigator.serviceWorker.ready).catch(() => null)
+    : Promise.resolve(null);
+  const canAlert = 'Notification' in window && 'serviceWorker' in navigator;
+  const alertsOn = () => {
+    try { return canAlert && Notification.permission === 'granted' && localStorage.getItem('alerts') !== 'off'; } catch (err) { return false; }
+  };
+  function paintAlertBtn() {
+    const b = $('#alertBtn');
+    if (!canAlert) { b.hidden = true; return; }
+    b.hidden = false;
+    const blocked = Notification.permission === 'denied';
+    b.classList.toggle('on', alertsOn());
+    b.innerHTML = icon('bell') + (blocked ? 'Alerts blocked' : alertsOn() ? 'Alerts on' : 'Turn on alerts');
+    b.title = blocked ? 'Alerts are blocked in your browser settings for this site.' : alertsOn() ? 'Tap to turn plant alerts off.' : 'Get a phone notification when your plant needs something.';
+  }
+  async function showAlert(title, body, tag) {
+    const reg = await swReady;
+    const opts = { body, tag, icon: '/icons/icon-192.png', badge: '/icons/icon-192.png' };
+    if (reg) reg.showNotification(title, opts); else new Notification(title, opts);
+  }
+  // Alert for problems ("warn" or "bad") and waterings, only while the app is in the background.
+  function plantAlert(ev) {
+    if (!alertsOn() || !document.hidden) return;
+    if (ev.severity === 'warn' || ev.severity === 'bad' || ev.title === 'Watered') showAlert(ev.title, ev.message, 'plant-' + ev.id);
+  }
+  $('#alertBtn').addEventListener('click', async () => {
+    if (Notification.permission === 'denied') { paintAlertBtn(); return; }
+    if (Notification.permission === 'default') {
+      const p = await Notification.requestPermission();
+      if (p !== 'granted') { paintAlertBtn(); return; }
+      try { localStorage.setItem('alerts', 'on'); } catch (err) { }
+      showAlert('Plant alerts are on', "We'll tell you when your plant needs water, light or a better temperature.", 'alerts-on');
+    } else {
+      try { localStorage.setItem('alerts', alertsOn() ? 'off' : 'on'); } catch (err) { }
+    }
+    paintAlertBtn();
+  });
+  paintAlertBtn();
 
   // ---- account ----------------------------------------------------------
   // Start the dashboard only for a signed-in user; otherwise show the sign-in screen.
