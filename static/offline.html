@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#070b12">
+  <title>Offline · Sprout</title>
+  <style>
+    html, body { margin: 0; height: 100%; }
+    body { display: grid; place-items: center; padding: 24px 16px; box-sizing: border-box; background: #070b12; color: #e8eef6;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; text-align: center; }
+    img { width: 84px; height: 84px; border-radius: 22px; }
+    h1 { font-size: 22px; margin: 18px 0 6px; }
+    p { color: #a9b6c6; max-width: 34ch; margin: 0 auto 20px; line-height: 1.5; }
+    button { font: inherit; font-weight: 600; border: 0; border-radius: 999px; padding: 11px 24px; background: #2fcf75; color: #06120c; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <main>
+    <img src="/icons/icon-192.png" alt="">
+    <h1>You're offline</h1>
+    <p>Sprout needs the internet to show your plant. Your pot keeps working and will catch up when you're back online.</p>
+    <button type="button" onclick="location.reload()">Try again</button>
+  </main>
+</body>
+</html>

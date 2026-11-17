@@ -4,6 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Sprout · Smart Plant Pot</title>
+  <meta name="description" content="See how your plant feels: live readings, history and alerts from your Smart Plant Pot.">
+  <meta name="theme-color" content="#070b12">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/icons/favicon.ico" sizes="any">
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Sprout">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body data-state="healthy" class="checking">
@@ -103,7 +112,7 @@
           <ul class="recs" id="recs"></ul>
         </div>
         <div class="card pad">
-          <h2><span data-ic="bell"></span>Notifications<span class="feed-next" id="feedNext"></span></h2>
+          <h2><span data-ic="bell"></span>Notifications<span class="feed-next" id="feedNext"></span><button class="btn small alert-btn" id="alertBtn" type="button" hidden></button></h2>
           <div class="feed-bar" aria-hidden="true"><i id="feedBar"></i></div>
           <ul class="feed" id="feed"><li class="empty">No notifications yet.</li></ul>
         </div>
