@@ -280,9 +280,35 @@
   }
   // Alert for problems ("warn" or "bad") and waterings, only while the app is in the background.
   function plantAlert(ev) {
-    if (!alertsOn() || !document.hidden) return;
+    if (!alertsOn() || !document.hidden || pushActive) return;   // with push, the server sends it
     if (ev.severity === 'warn' || ev.severity === 'bad' || ev.title === 'Watered') showAlert(ev.title, ev.message, 'plant-' + ev.id);
   }
+  // Push: the server sends alerts to this phone even when the app is closed.
+  // (On iPhone this works in the app added to the Home Screen, iOS 16.4 or newer.)
+  let pushActive = false;
+  const b64ToBytes = s => Uint8Array.from(atob((s + '='.repeat((4 - s.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+  async function pushSubscribe() {
+    try {
+      const reg = await swReady;
+      if (!reg || !('pushManager' in reg)) return false;
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        const r = await fetch('/api/push/key'); if (!r.ok) return false;
+        sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes((await r.json()).key) });
+      }
+      const res = await fetch('/api/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscription: sub.toJSON() }) });
+      pushActive = res.ok;
+    } catch (err) { pushActive = false; }
+    return pushActive;
+  }
+  async function pushUnsubscribe() {
+    pushActive = false;
+    try {
+      const reg = await swReady; const sub = reg && reg.pushManager && await reg.pushManager.getSubscription();
+      if (sub) { await post('/api/push/unsubscribe', { endpoint: sub.endpoint }); await sub.unsubscribe(); }
+    } catch (err) { }
+  }
+
   $('#alertBtn').addEventListener('click', async () => {
     if (Notification.permission === 'denied') { paintAlertBtn(); return; }
     if (Notification.permission === 'default') {
@@ -290,8 +316,11 @@
       if (p !== 'granted') { paintAlertBtn(); return; }
       try { localStorage.setItem('alerts', 'on'); } catch (err) { }
       showAlert('Plant alerts are on', "We'll tell you when your plant needs water, light or a better temperature.", 'alerts-on');
+      pushSubscribe();
     } else {
-      try { localStorage.setItem('alerts', alertsOn() ? 'off' : 'on'); } catch (err) { }
+      const turnOn = !alertsOn();
+      try { localStorage.setItem('alerts', turnOn ? 'on' : 'off'); } catch (err) { }
+      if (turnOn) pushSubscribe(); else pushUnsubscribe();
     }
     paintAlertBtn();
   });
@@ -314,10 +343,20 @@
     const msg = $('#testMsg');
     msg.hidden = false;
     if (!alertsOn()) { msg.dataset.level = 'bad'; msg.textContent = 'Turn on alerts first: Dashboard, then "Turn on alerts" in the Notifications card.'; return; }
-    const wait = $('#testDelay').checked ? 5000 : 0;
+    const wait = $('#testDelay').checked ? 10 : 0;
     msg.dataset.level = 'good';
-    msg.textContent = wait ? `"${title}" arrives in 5 seconds. Lock your phone now to see it like a real alert.` : `"${title}" sent.`;
-    setTimeout(() => showAlert(title, body, 'test-' + Date.now()), wait);
+    if (pushActive) {   // real push from the server: works even when the app is closed
+      fetch('/api/push/test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, body, delay: wait }) })
+        .then(r => r.json().then(d => ({ ok: r.ok, d })))
+        .then(({ ok, d }) => {
+          if (!ok) { msg.dataset.level = 'bad'; msg.textContent = d.error; return; }
+          msg.textContent = wait ? `"${title}" is coming from the server in 10 seconds. Swipe Sprout away now: it should still arrive.` : `"${title}" sent from the server.`;
+        })
+        .catch(() => { msg.dataset.level = 'bad'; msg.textContent = "Couldn't reach the server."; });
+      return;
+    }
+    msg.textContent = wait ? `"${title}" arrives in 10 seconds. Lock your phone now (push isn't available here, so keep the app open in the background).` : `"${title}" sent.`;
+    setTimeout(() => showAlert(title, body, 'test-' + Date.now()), wait * 1000);
   });
 
   // ---- account ----------------------------------------------------------
@@ -334,6 +373,7 @@
     isAdmin = user.role === 'admin';
     $('#adminTab').hidden = !isAdmin;
     if (isAdmin) route();   // the page may have been opened on #admin
+    if (alertsOn()) pushSubscribe();   // keep this phone's push subscription up to date
     const d = await (await fetch('/api/profiles')).json();
     $('#profileSel').innerHTML = d.profiles.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
     $('#profileSel').value = d.current;

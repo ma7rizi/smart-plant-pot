@@ -9,6 +9,7 @@ An IoT plant pot that shows how your plant feels. An ESP32 reads soil moisture, 
 ## Features
 
 - **Accounts:** sign up and sign in to see the dashboard. Passwords are stored hashed. Two roles: **user** and **admin**.
+- **Phone app:** install it from the browser (Add to Home Screen). **Push alerts** reach the phone even when the app is closed.
 - **Live dashboard:** plant status, a 0–100 health score, an exact copy of the pot's screen, four sensor cards with healthy ranges, advice and notifications. It updates every second.
 - **History:** charts with the healthy range shaded, or a table, for the last 120, 360 or 1,200 readings.
 - **Six faces:** SLEEPY, THIRSTY, OVERWATERED, HOT, COLD and HAPPY. The pot and the website use the same rules, in the same order.
@@ -136,6 +137,10 @@ The pot checks the rules in this order and shows the first one that matches.
 | `GET` | `/api/profiles` | Available plant profiles |
 | `POST` | `/api/profile` | Choose a plant profile |
 | `POST` | `/api/support` | Send a support message |
+| `GET` | `/api/push/key` | Public key a phone needs to subscribe to push alerts |
+| `POST` | `/api/push/subscribe` | Save this phone's push subscription |
+| `POST` | `/api/push/unsubscribe` | Remove this phone's push subscription |
+| `POST` | `/api/push/test` | Send a test push to your own phones (**admin only**) |
 | `POST` | `/api/reset` | Clear readings and notifications (**admin only**) |
 
 `/api/live`, `/api/history`, `/api/profiles` and `/api/profile` need a signed-in user. `/api/support` is open to everyone.
@@ -158,5 +163,6 @@ SQLite (`plant.db`), created automatically on first run. It keeps the newest 20,
 | `settings` | The chosen plant profile |
 | `support_messages` | Messages sent from the Support page |
 | `users` | Accounts: name, username, hashed password, role (user or admin) |
+| `push_subscriptions` | Phones that get push alerts: user, push address and encryption keys |
 
 Sign in as admin with username **`admin`**. On a laptop the password is `admin123`; online it is the `ADMIN_PASSWORD` set on the server (see [DEPLOY.md](DEPLOY.md)). Everyone who signs up is a normal user.
