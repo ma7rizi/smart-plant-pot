@@ -7,6 +7,7 @@ with the real pot and nothing else in the system has to change.
 
 import json
 import math
+import os
 import random
 import threading
 import urllib.request
@@ -136,7 +137,7 @@ class Simulator:
     def _post(self, payload):
         req = urllib.request.Request(
             self.url, data=json.dumps(payload).encode(),
-            headers={"Content-Type": "application/json"}, method="POST")
+            headers={"Content-Type": "application/json", "X-Api-Key": os.environ.get("API_KEY", "")}, method="POST")
         try:
             urllib.request.urlopen(req, timeout=2).read()
         except Exception:

@@ -97,7 +97,7 @@ See [DEPLOY.md](DEPLOY.md) to put the website on PythonAnywhere (free plan), so 
 
 1. Install the [Arduino IDE](https://www.arduino.cc/en/software) and the ESP32 board package.
 2. Install the libraries: **Adafruit SSD1306**, **Adafruit GFX**, **BH1750** and **DHT sensor library**.
-3. In `firmware/smart_pot/`, copy `secrets.example.h` to `secrets.h` and fill in your Wi-Fi name, password and your computer's IP address. `secrets.h` is ignored by Git.
+3. In `firmware/smart_pot/`, copy `secrets.example.h` to `secrets.h` and fill in your Wi-Fi name, password, the server address and the `API_KEY` (if the server uses one). `secrets.h` is ignored by Git.
 4. Open `smart_pot.ino`, choose your ESP32 board and port, and upload.
 
 **Wiring**
@@ -125,7 +125,7 @@ The pot checks the rules in this order and shows the first one that matches.
 
 | Method | Endpoint | Purpose |
 |---|---|---|
-| `POST` | `/api/readings` | The pot sends a reading |
+| `POST` | `/api/readings` | The pot sends a reading (needs the `X-Api-Key` header when the server has an `API_KEY`) |
 | `GET` | `/api/live?after=<id>` | Latest reading, status, new notifications and trend data |
 | `GET` | `/api/history?limit=<n>` | The newest `n` readings (10–2,000) |
 | `GET` | `/api/profiles` | Available plant profiles |

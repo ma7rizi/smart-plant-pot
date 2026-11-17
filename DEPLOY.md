@@ -39,16 +39,25 @@ Close the console when it's done, so it doesn't use CPU time.
 In the **Code** section, click the **WSGI configuration file** link. Delete everything in it and paste:
 
 ```python
+import os
 import sys
 
 path = "/home/ma7rizi/smart-plant-pot"
 if path not in sys.path:
     sys.path.insert(0, path)
 
+os.environ["API_KEY"] = "PASTE_YOUR_SECRET_KEY_HERE"   # the pot must send this key
+
 from wsgi import application  # noqa: F401
 ```
 
-Click **Save**.
+Replace `PASTE_YOUR_SECRET_KEY_HERE` with a long random key. To make one, run this in the PythonAnywhere Bash console and copy the result:
+
+```bash
+python3 -c "import secrets; print(secrets.token_urlsafe(24))"
+```
+
+This file is on PythonAnywhere only, not on GitHub, so the key stays secret. Never put the key in the repository. Click **Save**.
 
 ## 4. Serve the static files directly (faster on the free plan)
 
@@ -73,9 +82,10 @@ In `firmware/smart_pot/secrets.h` set:
 
 ```cpp
 const char* SERVER_URL = "http://ma7rizi.pythonanywhere.com/api/readings";
+const char* API_KEY    = "the same key as in the WSGI file";
 ```
 
-Upload the firmware. The pot now works on any Wi-Fi network with internet access, and the dashboard shows **Pot online · Wi-Fi**.
+Upload the firmware. If the pot's screen shows **BAD KEY**, the key in `secrets.h` doesn't match the one in the WSGI file. The pot now works on any Wi-Fi network with internet access, and the dashboard shows **Pot online · Wi-Fi**.
 
 ## Updating the website later
 
@@ -96,4 +106,5 @@ On the **Web** tab, open the **Error log** link in the **Log files** section. Th
 |---|---|
 | "Something went wrong" page | Check the error log. Usually a typo in the WSGI file or the path. |
 | `ModuleNotFoundError: flask` | Run the `pip3.10 install --user -r requirements.txt` step again. |
+| Pot shows BAD KEY | `API_KEY` in `secrets.h` must exactly match the one in the WSGI file. Click **Reload** after changing the WSGI file. |
 | Pot stays offline | Check that `SERVER_URL` uses `http://` (not https) and the exact username, and that Force HTTPS is off. |

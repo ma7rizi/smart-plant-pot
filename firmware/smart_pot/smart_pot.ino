@@ -260,6 +260,7 @@ bool sendReading(const char* body) {
   http.begin(SERVER_URL);
   http.setTimeout(3000);
   http.addHeader("Content-Type", "application/json");
+  http.addHeader("X-Api-Key", API_KEY);  // must match API_KEY on the server
   int code = http.POST(body);
   http.end();
 
@@ -267,7 +268,7 @@ bool sendReading(const char* body) {
     netStatus = "";
     return true;
   }
-  netStatus = "NO SERVER";
+  netStatus = (code == 401) ? "BAD KEY" : "NO SERVER";  // 401 = the server rejected API_KEY
   Serial.print("Server error: ");
   Serial.println(code);
   return false;
