@@ -6,7 +6,7 @@
   <title>Sprout · Smart Plant Pot</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body data-state="healthy">
+<body data-state="healthy" class="checking">
   <div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
 
   <header class="nav">
@@ -24,8 +24,36 @@
       <div class="conn" id="conn"><span class="dot"></span><span id="connText">Connecting…</span></div>
       <label class="select"><span class="sr">Plant profile</span><select id="profileSel"></select></label>
       <button class="btn" id="simBtn" type="button"><span data-ic="sliders"></span><span class="lbl">Simulator</span></button>
+      <div class="user-box" id="userBox">
+        <span class="user-ic" id="userInitial" aria-hidden="true"></span>
+        <span class="user-name"><b id="userName"></b><em id="userRole"></em></span>
+        <button class="btn small ghost" id="logoutBtn" type="button">Sign out</button>
+      </div>
     </div>
   </header>
+
+  <!-- ================= SIGN IN / SIGN UP ================= -->
+  <section class="auth" id="authPage" aria-labelledby="authTitle">
+    <div class="card pad auth-card">
+      <span class="logo auth-logo"><svg viewBox="0 0 24 24"><path d="M12 21v-8M12 13C12 8 8.5 5.5 4 5.5 4 10 6.5 13 12 13zM12 15.5c0-4 3-6.5 8-6.5 0 4.2-2.8 6.5-8 6.5z"/></svg></span>
+      <h1 id="authTitle">Welcome back</h1>
+      <p class="subline" id="authSub">Sign in to see how your plant is doing.</p>
+      <div class="seg auth-seg" id="authSeg" role="tablist">
+        <button type="button" class="on" data-mode="login" role="tab">Sign in</button>
+        <button type="button" data-mode="signup" role="tab">Create account</button>
+      </div>
+      <form id="authForm" novalidate>
+        <div class="field" id="afNameField" hidden><label for="afName">Full name</label>
+          <input id="afName" name="name" autocomplete="name" maxlength="80"><small class="err" data-for="name"></small></div>
+        <div class="field"><label for="afEmail" id="afEmailLabel">Email or username</label>
+          <input id="afEmail" name="email" type="text" autocomplete="username" maxlength="120"><small class="err" data-for="email"></small></div>
+        <div class="field"><label for="afPassword">Password<span class="count" id="afHint"></span></label>
+          <input id="afPassword" name="password" type="password" autocomplete="current-password" maxlength="128"><small class="err" data-for="password"></small></div>
+        <p class="form-error" id="afError" hidden></p>
+        <button class="btn primary auth-submit" type="submit" id="afSubmit">Sign in</button>
+      </form>
+    </div>
+  </section>
 
   <main>
     <!-- ================= DASHBOARD ================= -->

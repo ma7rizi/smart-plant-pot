@@ -47,11 +47,13 @@ if path not in sys.path:
     sys.path.insert(0, path)
 
 os.environ["API_KEY"] = "PASTE_YOUR_SECRET_KEY_HERE"   # the pot must send this key
+os.environ["SECRET_KEY"] = "PASTE_A_SECOND_KEY_HERE"   # signs the login cookie
+os.environ["ADMIN_PASSWORD"] = "CHOOSE_ADMIN_PASSWORD"  # password for the "admin" account
 
 from wsgi import application  # noqa: F401
 ```
 
-Replace `PASTE_YOUR_SECRET_KEY_HERE` with a long random key. To make one, run this in the PythonAnywhere Bash console and copy the result:
+Replace `PASTE_YOUR_SECRET_KEY_HERE` and `PASTE_A_SECOND_KEY_HERE` with two **different** long random keys, and `CHOOSE_ADMIN_PASSWORD` with the admin password. Then sign in on the website with username **`admin`** and that password. To make a key, run this in the PythonAnywhere Bash console and copy the result (run it twice for two keys):
 
 ```bash
 python3 -c "import secrets; print(secrets.token_urlsafe(24))"

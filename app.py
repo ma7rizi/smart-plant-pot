@@ -12,13 +12,16 @@ import json
 import logging
 import os
 import re
+import secrets
 import sqlite3
 import sys
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
+from functools import wraps
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, session
+from werkzeug.security import check_password_hash, generate_password_hash
 
 import rules
 from simulator import Simulator, make_sim_api
@@ -33,10 +36,17 @@ OFFLINE_AFTER = 20 if REAL_POT else 6   # seconds without a reading before the p
 MAX_READINGS = 20000
 # Secret the pot must send in the X-Api-Key header. Empty = no check (local testing).
 API_KEY = os.environ.get("API_KEY", "")
+# Built-in admin account: sign in with username "admin". Online, set ADMIN_PASSWORD (see DEPLOY.md);
+# on a laptop without it the password is "admin123" for easy testing.
+ADMIN_USER = "admin"
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD") or ("" if REAL_POT else "admin123")
+LOGIN_LIMIT, LOGIN_WINDOW = 5, 300   # at most 5 wrong passwords per 5 minutes from one address
 WATER_JUMP = 5          # % rise in soil moisture that counts as a watering
 WATER_COOLDOWN = 10     # seconds between "watered" notifications
 
 app = Flask(__name__, static_folder="static", static_url_path="")
+app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax",
+                  PERMANENT_SESSION_LIFETIME=timedelta(days=30))
 db = sqlite3.connect(DB_PATH, check_same_thread=False)
 db.row_factory = sqlite3.Row
 lock = threading.Lock()
@@ -61,7 +71,31 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             created_at TEXT, name TEXT, email TEXT, phone TEXT,
             topic TEXT, message TEXT, status TEXT DEFAULT 'new');
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL, email TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'user', created_at TEXT);
     """)
+    # Key that signs the login cookie: SECRET_KEY when hosted, otherwise one saved in the database.
+    secret = os.environ.get("SECRET_KEY")
+    if not secret:
+        row = db.execute("SELECT value FROM settings WHERE key='secret_key'").fetchone()
+        secret = row["value"] if row else secrets.token_hex(32)
+        if not row:
+            db.execute("INSERT INTO settings (key, value) VALUES ('secret_key', ?)", (secret,))
+            db.commit()
+    app.secret_key = secret
+    # Create the admin account, or update its password if ADMIN_PASSWORD changed.
+    if ADMIN_PASSWORD:
+        row = db.execute("SELECT password_hash FROM users WHERE email = ?", (ADMIN_USER,)).fetchone()
+        if row is None:
+            db.execute("INSERT INTO users (name, email, password_hash, role, created_at) VALUES (?,?,?,?,?)",
+                       ("Admin", ADMIN_USER, generate_password_hash(ADMIN_PASSWORD), "admin",
+                        datetime.now().isoformat(timespec="seconds")))
+        elif not check_password_hash(row["password_hash"], ADMIN_PASSWORD):
+            db.execute("UPDATE users SET password_hash = ?, role = 'admin' WHERE email = ?",
+                       (generate_password_hash(ADMIN_PASSWORD), ADMIN_USER))
+        db.commit()
     row = db.execute("SELECT value FROM settings WHERE key='profile'").fetchone()
     if row and row["value"] in rules.PROFILES:
         live["profile"] = row["value"]
@@ -182,7 +216,111 @@ def _profile_json(pid):
     return {"id": pid, **rules.PROFILES[pid]}
 
 
+# ---- accounts -----------------------------------------------------------
+failed_logins = {}   # address -> times of recent wrong passwords
+
+
+def current_user():
+    uid = session.get("uid")
+    if uid is None:
+        return None
+    return db.execute("SELECT id, name, email, role FROM users WHERE id = ?", (uid,)).fetchone()
+
+
+def login_required(view):
+    @wraps(view)
+    def wrapper(*args, **kwargs):
+        if current_user() is None:
+            return jsonify(error="Please sign in."), 401
+        return view(*args, **kwargs)
+    return wrapper
+
+
+def admin_required(view):
+    @wraps(view)
+    def wrapper(*args, **kwargs):
+        user = current_user()
+        if user is None:
+            return jsonify(error="Please sign in."), 401
+        if user["role"] != "admin":
+            return jsonify(error="Only an admin can do this."), 403
+        return view(*args, **kwargs)
+    return wrapper
+
+
+def _user_json(u):
+    return {"id": u["id"], "name": u["name"], "email": u["email"], "role": u["role"]}
+
+
+def _client_ip():
+    return request.headers.get("X-Real-IP") or request.remote_addr or "?"
+
+
+@app.post("/api/signup")
+def signup():
+    d = request.get_json(silent=True) or {}
+    name = str(d.get("name", "")).strip()
+    email = str(d.get("email", "")).strip().lower()
+    password = str(d.get("password", ""))
+    errors = {}
+    if not 2 <= len(name) <= 80:
+        errors["name"] = "Enter your full name."
+    if len(email) > 120 or not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]{2,}", email):
+        errors["email"] = "Enter a valid email address."
+    if not 8 <= len(password) <= 128:
+        errors["password"] = "Use at least 8 characters."
+    if errors:
+        return jsonify(error="Check the highlighted fields.", errors=errors), 400
+    with lock:
+        if db.execute("SELECT 1 FROM users WHERE email = ?", (email,)).fetchone():
+            return jsonify(error="An account with this email already exists.",
+                           errors={"email": "This email is already registered. Sign in instead."}), 409
+        cur = db.execute(   # new accounts are always normal users; the admin is the built-in account
+            "INSERT INTO users (name, email, password_hash, role, created_at) VALUES (?,?,?,?,?)",
+            (name, email, generate_password_hash(password), "user", datetime.now().isoformat(timespec="seconds")))
+        db.commit()
+    session.clear()
+    session.permanent = True
+    session["uid"] = cur.lastrowid
+    return jsonify(user=_user_json(current_user()))
+
+
+@app.post("/api/login")
+def login():
+    d = request.get_json(silent=True) or {}
+    email = str(d.get("email", "")).strip().lower()
+    password = str(d.get("password", ""))
+    ip, now = _client_ip(), time.time()
+    recent = [t for t in failed_logins.get(ip, []) if now - t < LOGIN_WINDOW]
+    if len(recent) >= LOGIN_LIMIT:
+        return jsonify(error="Too many wrong attempts. Wait a few minutes and try again."), 429
+    user = db.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+    if user is None or not check_password_hash(user["password_hash"], password):
+        failed_logins[ip] = recent + [now]
+        return jsonify(error="Wrong email or password."), 401
+    failed_logins.pop(ip, None)
+    session.clear()
+    session.permanent = True
+    session["uid"] = user["id"]
+    return jsonify(user=_user_json(user))
+
+
+@app.post("/api/logout")
+def logout():
+    session.clear()
+    return jsonify(ok=True)
+
+
+@app.get("/api/me")
+def me():
+    user = current_user()
+    if user is None:
+        return jsonify(error="Please sign in."), 401
+    return jsonify(user=_user_json(user))
+
+
 @app.get("/api/live")
+@login_required
 def get_live():
     after = request.args.get("after", 0, type=int)
     with lock:
@@ -205,6 +343,7 @@ def get_live():
 
 
 @app.get("/api/history")
+@login_required
 def get_history():
     limit = max(10, min(2000, request.args.get("limit", 180, type=int)))
     with lock:
@@ -215,11 +354,13 @@ def get_history():
 
 
 @app.get("/api/profiles")
+@login_required
 def get_profiles():
     return jsonify(profiles=[_profile_json(p) for p in rules.PROFILES], current=live["profile"])
 
 
 @app.post("/api/profile")
+@login_required
 def set_profile():
     pid = (request.get_json(silent=True) or {}).get("id")
     if pid not in rules.PROFILES:
@@ -267,6 +408,7 @@ def post_support():
 
 
 @app.post("/api/reset")
+@admin_required
 def reset():
     with lock:
         db.execute("DELETE FROM readings")

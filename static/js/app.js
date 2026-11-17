@@ -229,7 +229,9 @@
 
   async function poll() {
     try {
-      render(await (await fetch('/api/live?after=' + lastEvent)).json());
+      const res = await fetch('/api/live?after=' + lastEvent);
+      if (res.status === 401) { location.reload(); return; }   // signed out in another tab
+      render(await res.json());
     } catch (err) {
       $('#conn').className = 'conn off';
       $('#connText').textContent = 'Server not reachable';
@@ -237,12 +239,72 @@
     setTimeout(poll, 1000);
   }
 
-  // ---- plant profile ----------------------------------------------------
-  fetch('/api/profiles').then(r => r.json()).then(d => {
+  // ---- account ----------------------------------------------------------
+  // Start the dashboard only for a signed-in user; otherwise show the sign-in screen.
+  async function startApp() {
+    let res;
+    try { res = await fetch('/api/me'); } catch (err) { res = null; }
+    document.body.classList.remove('checking');
+    if (!res || res.status === 401) { document.body.classList.add('signed-out'); $('#afEmail').focus(); return; }
+    const { user } = await res.json();
+    $('#userName').textContent = user.name;
+    $('#userRole').textContent = user.role === 'admin' ? 'Admin' : 'User';
+    $('#userInitial').textContent = user.name.trim()[0].toUpperCase();
+    const d = await (await fetch('/api/profiles')).json();
     $('#profileSel').innerHTML = d.profiles.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
     $('#profileSel').value = d.current;
     poll();
+  }
+
+  let authMode = 'login';
+  const authForm = $('#authForm');
+  const setAuthErr = (name, text) => {
+    authForm.querySelector(`.err[data-for="${name}"]`).textContent = text || '';
+    authForm.elements[name].closest('.field').classList.toggle('invalid', !!text);
+  };
+  function setAuthMode(mode) {
+    authMode = mode;
+    const signup = mode === 'signup';
+    $('#authSeg').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.mode === mode));
+    $('#afNameField').hidden = !signup;
+    $('#authTitle').textContent = signup ? 'Create your account' : 'Welcome back';
+    $('#authSub').textContent = signup ? 'Sign up to follow your plant from anywhere.' : 'Sign in to see how your plant is doing.';
+    $('#afSubmit').textContent = signup ? 'Create account' : 'Sign in';
+    $('#afHint').textContent = signup ? 'at least 8 characters' : '';
+    $('#afEmailLabel').textContent = signup ? 'Email' : 'Email or username';
+    $('#afPassword').autocomplete = signup ? 'new-password' : 'current-password';
+    ['name', 'email', 'password'].forEach(k => setAuthErr(k, ''));
+    $('#afError').hidden = true;
+    (signup ? $('#afName') : $('#afEmail')).focus();
+  }
+  $('#authSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setAuthMode(b.dataset.mode); });
+  authForm.addEventListener('input', e => { if (e.target.name) setAuthErr(e.target.name, ''); $('#afError').hidden = true; });
+  authForm.addEventListener('submit', async e => {
+    e.preventDefault();
+    const v = Object.fromEntries(['name', 'email', 'password'].map(k => [k, authForm.elements[k].value]));
+    const errs = {};
+    if (authMode === 'signup' && v.name.trim().length < 2) errs.name = 'Enter your full name.';
+    if (authMode === 'signup' && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.email.trim())) errs.email = 'Enter a valid email address.';
+    if (authMode === 'login' && !v.email.trim()) errs.email = 'Enter your email or username.';
+    if (authMode === 'signup' ? v.password.length < 8 : !v.password) errs.password = authMode === 'signup' ? 'Use at least 8 characters.' : 'Enter your password.';
+    ['name', 'email', 'password'].forEach(k => setAuthErr(k, errs[k]));
+    if (Object.keys(errs).length) return;
+    const btn = $('#afSubmit'), label = btn.textContent;
+    btn.disabled = true; btn.textContent = authMode === 'signup' ? 'Creating account…' : 'Signing in…';
+    try {
+      const r = await fetch(authMode === 'signup' ? '/api/signup' : '/api/login',
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(v) });
+      const d = await r.json();
+      if (!r.ok) { Object.entries(d.errors || {}).forEach(([k, t]) => setAuthErr(k, t)); throw new Error(d.error); }
+      location.reload();
+    } catch (err) {
+      $('#afError').textContent = err.message === 'Failed to fetch' ? "Couldn't reach the server. Try again." : err.message;
+      $('#afError').hidden = false;
+      btn.disabled = false; btn.textContent = label;
+    }
   });
+  $('#logoutBtn').addEventListener('click', async () => { await post('/api/logout'); location.reload(); });
+  startApp();
   $('#profileSel').addEventListener('change', e => post('/api/profile', { id: e.target.value }));
 
   // ---- history ----------------------------------------------------------
