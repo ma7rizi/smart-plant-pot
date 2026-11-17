@@ -245,7 +245,7 @@
     let res;
     try { res = await fetch('/api/me'); } catch (err) { res = null; }
     document.body.classList.remove('checking');
-    if (!res || res.status === 401) { document.body.classList.add('signed-out'); $('#afEmail').focus(); return; }
+    if (!res || res.status === 401) { document.body.classList.add('signed-out'); $('#afUser').focus(); return; }
     const { user } = await res.json();
     $('#userName').textContent = user.name;
     $('#userRole').textContent = user.role === 'admin' ? 'Admin' : 'User';
@@ -271,23 +271,23 @@
     $('#authSub').textContent = signup ? 'Sign up to follow your plant from anywhere.' : 'Sign in to see how your plant is doing.';
     $('#afSubmit').textContent = signup ? 'Create account' : 'Sign in';
     $('#afHint').textContent = signup ? 'at least 8 characters' : '';
-    $('#afEmailLabel').textContent = signup ? 'Email' : 'Email or username';
+    $('#afUserHint').textContent = signup ? '3 to 20 letters or numbers' : '';
     $('#afPassword').autocomplete = signup ? 'new-password' : 'current-password';
-    ['name', 'email', 'password'].forEach(k => setAuthErr(k, ''));
+    ['name', 'username', 'password'].forEach(k => setAuthErr(k, ''));
     $('#afError').hidden = true;
-    (signup ? $('#afName') : $('#afEmail')).focus();
+    (signup ? $('#afName') : $('#afUser')).focus();
   }
   $('#authSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setAuthMode(b.dataset.mode); });
   authForm.addEventListener('input', e => { if (e.target.name) setAuthErr(e.target.name, ''); $('#afError').hidden = true; });
   authForm.addEventListener('submit', async e => {
     e.preventDefault();
-    const v = Object.fromEntries(['name', 'email', 'password'].map(k => [k, authForm.elements[k].value]));
+    const v = Object.fromEntries(['name', 'username', 'password'].map(k => [k, authForm.elements[k].value]));
     const errs = {};
     if (authMode === 'signup' && v.name.trim().length < 2) errs.name = 'Enter your full name.';
-    if (authMode === 'signup' && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.email.trim())) errs.email = 'Enter a valid email address.';
-    if (authMode === 'login' && !v.email.trim()) errs.email = 'Enter your email or username.';
+    if (authMode === 'signup' && !/^[a-z0-9_.]{3,20}$/i.test(v.username.trim())) errs.username = 'Use 3 to 20 letters, numbers, _ or .';
+    if (authMode === 'login' && !v.username.trim()) errs.username = 'Enter your username.';
     if (authMode === 'signup' ? v.password.length < 8 : !v.password) errs.password = authMode === 'signup' ? 'Use at least 8 characters.' : 'Enter your password.';
-    ['name', 'email', 'password'].forEach(k => setAuthErr(k, errs[k]));
+    ['name', 'username', 'password'].forEach(k => setAuthErr(k, errs[k]));
     if (Object.keys(errs).length) return;
     const btn = $('#afSubmit'), label = btn.textContent;
     btn.disabled = true; btn.textContent = authMode === 'signup' ? 'Creating account…' : 'Signing in…';
@@ -479,6 +479,7 @@
   fetch('/api/sim/options').then(r => r.json()).then(o => {
     $('#scenarios').innerHTML = o.scenarios.map(s => `<button type="button" data-id="${s.id}"><b>${esc(s.label)}</b><span>${esc(s.desc)}</span></button>`).join('');
     $('#speedSeg').innerHTML = o.speeds.map(s => `<button type="button" data-s="${s.value}">${s.label}</button>`).join('');
+    openSimIfWanted();   // only now: online there is no simulator, so the panel never flashes open
     pollSim();
   }).catch(() => {   // real pot mode: the backend has no simulator
     $('#simBtn').hidden = true;
@@ -503,8 +504,10 @@
   };
   $('#simBtn').addEventListener('click', () => setSim(!document.body.classList.contains('sim-open')));
   $('#simClose').addEventListener('click', () => setSim(false));
-  let saved = null;
-  try { saved = localStorage.getItem('sim-open'); } catch (err) { }
-  const forced = new URLSearchParams(location.search).get('sim');
-  if (forced ? forced === '1' : saved ? saved === '1' : window.innerWidth >= 1500) document.body.classList.add('sim-open');
+  function openSimIfWanted() {
+    let saved = null;
+    try { saved = localStorage.getItem('sim-open'); } catch (err) { }
+    const forced = new URLSearchParams(location.search).get('sim');
+    if (forced ? forced === '1' : saved ? saved === '1' : window.innerWidth >= 1500) document.body.classList.add('sim-open');
+  }
 })();
