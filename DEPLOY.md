@@ -96,9 +96,14 @@ After changes are merged into `main` on GitHub:
 ```bash
 cd ~/smart-plant-pot
 git pull
+pip3.10 install --user -r requirements.txt
 ```
 
-Then click **Reload** on the **Web** tab.
+The `pip` line is only needed when `requirements.txt` changed (for example when push alerts added `pywebpush`). Then click **Reload** on the **Web** tab.
+
+### Push alerts
+
+Phones that turn on alerts get them even when the app is closed (Web Push). Nothing to set up: the server creates its signing keys the first time and keeps them in the database. The free plan allows the push services (Apple, Google, Mozilla, Microsoft). On iPhone, push works in the app added to the Home Screen (iOS 16.4 or newer).
 
 ## If something goes wrong
 

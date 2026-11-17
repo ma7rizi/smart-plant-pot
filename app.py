@@ -16,12 +16,21 @@ import secrets
 import sqlite3
 import sys
 import threading
+import base64
 import time
 from datetime import datetime, timedelta
 from functools import wraps
 
 from flask import Flask, jsonify, request, session
 from werkzeug.security import check_password_hash, generate_password_hash
+
+try:   # Web Push: alerts that reach the phone even when the app is closed
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+    from py_vapid import Vapid
+    from pywebpush import WebPushException, webpush
+except ImportError:   # pip install -r requirements.txt
+    webpush = None
 
 import rules
 from simulator import Simulator, make_sim_api
@@ -75,6 +84,9 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL, username TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL,
             role TEXT NOT NULL DEFAULT 'user', created_at TEXT);
+        CREATE TABLE IF NOT EXISTS push_subscriptions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL,
+            endpoint TEXT NOT NULL UNIQUE, p256dh TEXT NOT NULL, auth TEXT NOT NULL, created_at TEXT);
     """)
     # Accounts used to sign in with an email; the column is now called username (old accounts are kept).
     cols = [c["name"] for c in db.execute("PRAGMA table_info(users)")]
@@ -90,6 +102,7 @@ def init_db():
             db.execute("INSERT INTO settings (key, value) VALUES ('secret_key', ?)", (secret,))
             db.commit()
     app.secret_key = secret
+    load_vapid_keys()
     # Create the admin account, or update its password if ADMIN_PASSWORD changed.
     if ADMIN_PASSWORD:
         row = db.execute("SELECT password_hash FROM users WHERE username = ?", (ADMIN_USER,)).fetchone()
@@ -125,8 +138,76 @@ def _prev_levels():
 
 
 def add_event(severity, title, message, sensor=None):
-    db.execute("INSERT INTO events (received_at, severity, sensor, title, message) VALUES (?,?,?,?,?)",
-               (time.time(), severity, sensor, title, message))
+    cur = db.execute("INSERT INTO events (received_at, severity, sensor, title, message) VALUES (?,?,?,?,?)",
+                     (time.time(), severity, sensor, title, message))
+    # Problems and waterings also go to phones as push alerts (sent in the background).
+    if severity in ("warn", "bad") or title == "Watered":
+        push_later(title, message, f"plant-{cur.lastrowid}")
+
+
+# ---- push alerts (Web Push) ---------------------------------------------------
+VAPID = {"private": None, "public": None, "signer": None}
+# Push services want a way to contact the sender; Apple rejects made-up addresses.
+VAPID_CLAIMS = {"sub": os.environ.get("PUSH_CONTACT", "https://ma7rizi.pythonanywhere.com")}
+
+
+def load_vapid_keys():
+    """Keys that sign our push messages: VAPID_PRIVATE_KEY when set, otherwise made once and kept in the database."""
+    if webpush is None:
+        return
+    pem = os.environ.get("VAPID_PRIVATE_KEY", "").replace("\\n", "\n")
+    if not pem:
+        row = db.execute("SELECT value FROM settings WHERE key='vapid_private_key'").fetchone()
+        if row:
+            pem = row["value"]
+        else:
+            key = ec.generate_private_key(ec.SECP256R1())
+            pem = key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
+                                    serialization.NoEncryption()).decode()
+            db.execute("INSERT INTO settings (key, value) VALUES ('vapid_private_key', ?)", (pem,))
+            db.commit()
+    key = serialization.load_pem_private_key(pem.encode(), password=None)
+    raw = key.public_key().public_bytes(serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint)
+    VAPID["private"] = pem
+    VAPID["signer"] = Vapid.from_pem(pem.encode())
+    VAPID["public"] = base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
+
+
+def send_push(title, body, tag, user_id=None):
+    """Send one alert to every subscribed phone (or one user's phones). Returns how many got it."""
+    if webpush is None or not VAPID["signer"]:
+        return 0
+    with lock:
+        sql, args = "SELECT id, endpoint, p256dh, auth FROM push_subscriptions", ()
+        if user_id is not None:
+            sql, args = sql + " WHERE user_id = ?", (user_id,)
+        subs = db.execute(sql, args).fetchall()
+    data = json.dumps({"title": title, "body": body, "tag": tag})
+    sent, gone = 0, []
+    for s in subs:
+        try:
+            webpush({"endpoint": s["endpoint"], "keys": {"p256dh": s["p256dh"], "auth": s["auth"]}}, data,
+                    vapid_private_key=VAPID["signer"], vapid_claims=dict(VAPID_CLAIMS), ttl=3600, timeout=10)
+            sent += 1
+        except WebPushException as e:
+            if e.response is not None and e.response.status_code in (404, 410):
+                gone.append(s["id"])   # the phone unsubscribed or the app was removed
+            else:
+                logging.warning("push failed: %s", e)
+        except Exception as e:   # network problem: try again with the next alert
+            logging.warning("push failed: %s", e)
+    if gone:
+        with lock:
+            db.executemany("DELETE FROM push_subscriptions WHERE id = ?", [(i,) for i in gone])
+            db.commit()
+    return sent
+
+
+def push_later(title, body, tag, user_id=None, delay=0):
+    """Send in a background thread, so the pot's reading or the request is never slowed down."""
+    t = threading.Timer(delay, send_push, args=(title, body, tag, user_id))
+    t.daemon = True
+    t.start()
 
 
 def events_for_change(old, new, name):
@@ -412,6 +493,54 @@ def post_support():
             (datetime.now().isoformat(timespec="seconds"), v["name"], v["email"], v["phone"], v["topic"], v["message"]))
         db.commit()
     return jsonify(ok=True, ref=f"SP-{cur.lastrowid:04d}")
+
+
+@app.get("/api/push/key")
+@login_required
+def push_key():
+    if not VAPID["public"]:
+        return jsonify(error="Push alerts are not set up on this server."), 503
+    return jsonify(key=VAPID["public"])
+
+
+@app.post("/api/push/subscribe")
+@login_required
+def push_subscribe():
+    sub = (request.get_json(silent=True) or {}).get("subscription") or {}
+    endpoint, keys = str(sub.get("endpoint", "")), sub.get("keys") or {}
+    if not endpoint.startswith("https://") or len(endpoint) > 1000 or not keys.get("p256dh") or not keys.get("auth"):
+        return jsonify(error="Invalid push subscription."), 400
+    with lock:
+        db.execute("INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth, created_at) VALUES (?,?,?,?,?) "
+                   "ON CONFLICT(endpoint) DO UPDATE SET user_id = excluded.user_id, p256dh = excluded.p256dh, auth = excluded.auth",
+                   (session["uid"], endpoint, str(keys["p256dh"]), str(keys["auth"]), datetime.now().isoformat(timespec="seconds")))
+        db.commit()
+    return jsonify(ok=True)
+
+
+@app.post("/api/push/unsubscribe")
+@login_required
+def push_unsubscribe():
+    endpoint = str((request.get_json(silent=True) or {}).get("endpoint", ""))
+    with lock:
+        db.execute("DELETE FROM push_subscriptions WHERE endpoint = ? AND user_id = ?", (endpoint, session["uid"]))
+        db.commit()
+    return jsonify(ok=True)
+
+
+@app.post("/api/push/test")
+@admin_required
+def push_test():
+    """Admin tool: send a test alert from the server to the admin's own phones, after an optional delay."""
+    d = request.get_json(silent=True) or {}
+    title, body = str(d.get("title", "Test alert"))[:60], str(d.get("body", ""))[:200]
+    delay = max(0, min(30, int(d.get("delay", 0) or 0)))
+    with lock:
+        count = db.execute("SELECT COUNT(*) FROM push_subscriptions WHERE user_id = ?", (session["uid"],)).fetchone()[0]
+    if count == 0:
+        return jsonify(error="This device isn't subscribed to push alerts yet. Turn on alerts first."), 409
+    push_later(title, body, "test-" + str(int(time.time())), session["uid"], delay)
+    return jsonify(ok=True, devices=count, delay=delay)
 
 
 @app.post("/api/reset")

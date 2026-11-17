@@ -1,6 +1,6 @@
 // Service worker: lets the website install as an app, opens instantly,
 // shows a friendly screen when there is no internet, and shows plant alerts.
-const CACHE = 'sprout-v2';
+const CACHE = 'sprout-v3';
 const SHELL = ['/offline.html', '/icons/icon-192.png', '/icons/icon.svg'];
 
 self.addEventListener('install', event => {
@@ -32,6 +32,15 @@ self.addEventListener('fetch', event => {
         return res;
       })
       .catch(() => caches.match(req)));
+});
+
+// A push alert from the server: arrives even when the app is closed.
+self.addEventListener('push', event => {
+  let d = {};
+  try { d = event.data ? event.data.json() : {}; } catch (err) { d = { body: event.data && event.data.text() }; }
+  event.waitUntil(self.registration.showNotification(d.title || 'Sprout', {
+    body: d.body || '', tag: d.tag, icon: '/icons/icon-192.png', badge: '/icons/icon-192.png',
+  }));
 });
 
 // Tapping a plant alert opens the app (or brings it to the front).
