@@ -126,8 +126,8 @@ The pot checks the rules in this order and shows the first one that matches.
 
 | Method | Endpoint | Purpose |
 |---|---|---|
-| `POST` | `/api/signup` | Create an account (name, email, password) |
-| `POST` | `/api/login` | Sign in (email or `admin`, password) |
+| `POST` | `/api/signup` | Create an account (name, username, password) |
+| `POST` | `/api/login` | Sign in (username, password) |
 | `POST` | `/api/logout` | Sign out |
 | `GET` | `/api/me` | The signed-in user, or 401 |
 | `POST` | `/api/readings` | The pot sends a reading (needs the `X-Api-Key` header when the server has an `API_KEY`) |
@@ -157,6 +157,6 @@ SQLite (`plant.db`), created automatically on first run. It keeps the newest 20,
 | `events` | Notifications, such as "Water me now" or "Watered" |
 | `settings` | The chosen plant profile |
 | `support_messages` | Messages sent from the Support page |
-| `users` | Accounts: name, email, hashed password, role (user or admin) |
+| `users` | Accounts: name, username, hashed password, role (user or admin) |
 
 Sign in as admin with username **`admin`**. On a laptop the password is `admin123`; online it is the `ADMIN_PASSWORD` set on the server (see [DEPLOY.md](DEPLOY.md)). Everyone who signs up is a normal user.

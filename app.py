@@ -73,9 +73,14 @@ def init_db():
             topic TEXT, message TEXT, status TEXT DEFAULT 'new');
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL, email TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL,
+            name TEXT NOT NULL, username TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL,
             role TEXT NOT NULL DEFAULT 'user', created_at TEXT);
     """)
+    # Accounts used to sign in with an email; the column is now called username (old accounts are kept).
+    cols = [c["name"] for c in db.execute("PRAGMA table_info(users)")]
+    if "email" in cols and "username" not in cols:
+        db.execute("ALTER TABLE users RENAME COLUMN email TO username")
+        db.commit()
     # Key that signs the login cookie: SECRET_KEY when hosted, otherwise one saved in the database.
     secret = os.environ.get("SECRET_KEY")
     if not secret:
@@ -87,13 +92,13 @@ def init_db():
     app.secret_key = secret
     # Create the admin account, or update its password if ADMIN_PASSWORD changed.
     if ADMIN_PASSWORD:
-        row = db.execute("SELECT password_hash FROM users WHERE email = ?", (ADMIN_USER,)).fetchone()
+        row = db.execute("SELECT password_hash FROM users WHERE username = ?", (ADMIN_USER,)).fetchone()
         if row is None:
-            db.execute("INSERT INTO users (name, email, password_hash, role, created_at) VALUES (?,?,?,?,?)",
+            db.execute("INSERT INTO users (name, username, password_hash, role, created_at) VALUES (?,?,?,?,?)",
                        ("Admin", ADMIN_USER, generate_password_hash(ADMIN_PASSWORD), "admin",
                         datetime.now().isoformat(timespec="seconds")))
         elif not check_password_hash(row["password_hash"], ADMIN_PASSWORD):
-            db.execute("UPDATE users SET password_hash = ?, role = 'admin' WHERE email = ?",
+            db.execute("UPDATE users SET password_hash = ?, role = 'admin' WHERE username = ?",
                        (generate_password_hash(ADMIN_PASSWORD), ADMIN_USER))
         db.commit()
     row = db.execute("SELECT value FROM settings WHERE key='profile'").fetchone()
@@ -224,7 +229,7 @@ def current_user():
     uid = session.get("uid")
     if uid is None:
         return None
-    return db.execute("SELECT id, name, email, role FROM users WHERE id = ?", (uid,)).fetchone()
+    return db.execute("SELECT id, name, username, role FROM users WHERE id = ?", (uid,)).fetchone()
 
 
 def login_required(view):
@@ -249,7 +254,7 @@ def admin_required(view):
 
 
 def _user_json(u):
-    return {"id": u["id"], "name": u["name"], "email": u["email"], "role": u["role"]}
+    return {"id": u["id"], "name": u["name"], "username": u["username"], "role": u["role"]}
 
 
 def _client_ip():
@@ -260,24 +265,26 @@ def _client_ip():
 def signup():
     d = request.get_json(silent=True) or {}
     name = str(d.get("name", "")).strip()
-    email = str(d.get("email", "")).strip().lower()
+    username = str(d.get("username", "")).strip().lower()
     password = str(d.get("password", ""))
     errors = {}
     if not 2 <= len(name) <= 80:
         errors["name"] = "Enter your full name."
-    if len(email) > 120 or not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]{2,}", email):
-        errors["email"] = "Enter a valid email address."
+    if not re.fullmatch(r"[a-z0-9_.]{3,20}", username):
+        errors["username"] = "Use 3 to 20 letters, numbers, _ or ."
+    elif username == ADMIN_USER:
+        errors["username"] = "This username is taken. Choose another one."
     if not 8 <= len(password) <= 128:
         errors["password"] = "Use at least 8 characters."
     if errors:
         return jsonify(error="Check the highlighted fields.", errors=errors), 400
     with lock:
-        if db.execute("SELECT 1 FROM users WHERE email = ?", (email,)).fetchone():
-            return jsonify(error="An account with this email already exists.",
-                           errors={"email": "This email is already registered. Sign in instead."}), 409
+        if db.execute("SELECT 1 FROM users WHERE username = ?", (username,)).fetchone():
+            return jsonify(error="This username is taken.",
+                           errors={"username": "This username is taken. Choose another one, or sign in."}), 409
         cur = db.execute(   # new accounts are always normal users; the admin is the built-in account
-            "INSERT INTO users (name, email, password_hash, role, created_at) VALUES (?,?,?,?,?)",
-            (name, email, generate_password_hash(password), "user", datetime.now().isoformat(timespec="seconds")))
+            "INSERT INTO users (name, username, password_hash, role, created_at) VALUES (?,?,?,?,?)",
+            (name, username, generate_password_hash(password), "user", datetime.now().isoformat(timespec="seconds")))
         db.commit()
     session.clear()
     session.permanent = True
@@ -288,16 +295,16 @@ def signup():
 @app.post("/api/login")
 def login():
     d = request.get_json(silent=True) or {}
-    email = str(d.get("email", "")).strip().lower()
+    username = str(d.get("username", "")).strip().lower()
     password = str(d.get("password", ""))
     ip, now = _client_ip(), time.time()
     recent = [t for t in failed_logins.get(ip, []) if now - t < LOGIN_WINDOW]
     if len(recent) >= LOGIN_LIMIT:
         return jsonify(error="Too many wrong attempts. Wait a few minutes and try again."), 429
-    user = db.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+    user = db.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
     if user is None or not check_password_hash(user["password_hash"], password):
         failed_logins[ip] = recent + [now]
-        return jsonify(error="Wrong email or password."), 401
+        return jsonify(error="Wrong username or password."), 401
     failed_logins.pop(ip, None)
     session.clear()
     session.permanent = True
