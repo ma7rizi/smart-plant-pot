@@ -1,6 +1,6 @@
 // Service worker: lets the website install as an app, opens instantly,
 // shows a friendly screen when there is no internet, and shows plant alerts.
-const CACHE = 'sprout-v1';
+const CACHE = 'sprout-v2';
 const SHELL = ['/offline.html', '/icons/icon-192.png', '/icons/icon.svg'];
 
 self.addEventListener('install', event => {

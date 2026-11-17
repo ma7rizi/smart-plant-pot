@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Sprout · Smart Plant Pot</title>
   <meta name="description" content="See how your plant feels: live readings, history and alerts from your Smart Plant Pot.">
   <meta name="theme-color" content="#070b12">
@@ -24,10 +24,11 @@
       <span>Sprout<small>Smart Plant Pot</small></span>
     </a>
     <nav class="tabs" id="tabs">
-      <a href="#dashboard" data-page="dashboard">Dashboard</a>
-      <a href="#history" data-page="history">History</a>
-      <a href="#about" data-page="about">About</a>
-      <a href="#support" data-page="support">Support</a>
+      <a href="#dashboard" data-page="dashboard"><span data-ic="leaf"></span><span>Dashboard</span></a>
+      <a href="#history" data-page="history"><span data-ic="chart"></span><span>History</span></a>
+      <a href="#about" data-page="about"><span data-ic="info"></span><span>About</span></a>
+      <a href="#support" data-page="support"><span data-ic="mail"></span><span>Support</span></a>
+      <a href="#admin" data-page="admin" id="adminTab" hidden><span data-ic="shield"></span><span>Admin</span></a>
     </nav>
     <div class="nav-right">
       <div class="conn" id="conn"><span class="dot"></span><span id="connText">Connecting…</span></div>
@@ -262,6 +263,22 @@
             <p class="subline">Smart Plant Pot is a diploma project by Group D28, Department of IT, University of Technology and Applied Sciences, Al Musanna.</p>
           </div>
         </div>
+      </div>
+    </section>
+    <!-- ================= ADMIN (admins only) ================= -->
+    <section class="page" id="page-admin" hidden>
+      <div class="page-head">
+        <div>
+          <h1>Admin</h1>
+          <p class="subline">Tools for the person who looks after Sprout.</p>
+        </div>
+      </div>
+      <div class="card pad admin-card">
+        <h2><span data-ic="bell"></span>Test phone alerts</h2>
+        <p class="caption">Send yourself each kind of plant alert to see how it looks on your phone. Turn on alerts first on the Dashboard, in the Notifications card.</p>
+        <label class="check-row"><input type="checkbox" id="testDelay" checked> Wait 5 seconds, so you can lock your phone first</label>
+        <div class="test-alerts" id="testAlerts"></div>
+        <p class="test-msg" id="testMsg" hidden></p>
       </div>
     </section>
   </main>
